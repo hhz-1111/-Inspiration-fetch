@@ -1,0 +1,45 @@
+<section class="page-head report-head">
+  <div><p class="eyebrow">03 / INSIGHT ARCHIVE</p><h1>灵感报告</h1><p class="sub">把已标记的视频沉淀成可检索、可复用的内容洞察。</p></div>
+  <div class="report-stats"><span><b>{{ items().length }}</b><small>灵感素材</small></span><span><b>{{ completedCount() }}</b><small>完成分析</small></span></div>
+</section>
+
+@if(loading()){
+  <section class="report-state"><i></i><p>正在整理灵感档案…</p></section>
+}@else if(error()&&!items().length){
+  <section class="report-state error"><b>!</b><h2>报告读取失败</h2><p>{{error()}}</p><button (click)="load()">重新加载</button></section>
+}@else if(!items().length){
+  <section class="report-state empty"><b>03</b><h2>还没有被标记的灵感</h2><p>在内容分析页为值得保留的视频点击“标记灵感”。</p><a routerLink="/analysis">前往内容分析 →</a></section>
+}@else{
+  <section class="report-workspace">
+    <div class="filter-rail"><span>按关键词查看</span>@for(keyword of keywords();track keyword){<button [class.active]="activeKeyword()===keyword" (click)="activeKeyword.set(keyword)">{{keyword}}</button>}</div>
+    @if(error()){<p class="inline-error">{{error()}}</p>}
+    <div class="insight-grid">
+      @for(item of visibleItems();track item.analysis_id;let index=$index){
+        <article class="insight-card" [class.complete]="item.analysis_status==='completed'">
+          <div class="card-cover">@if(item.thumbnail_url){<img [src]="item.thumbnail_url" alt="" referrerpolicy="no-referrer">}<span>{{(index+1).toString().padStart(2,'0')}}</span><button title="播放视频" (click)="play(item)">▶</button><i [class]="'status '+item.analysis_status">{{statusLabel(item.analysis_status)}}</i></div>
+          <div class="card-content"><div class="card-tags"><em>{{item.platform}}</em><strong># {{item.keyword}}</strong></div><h2>{{item.title}}</h2><p>{{item.analysis_status==='completed'?(item.transcript||'分析已完成'):item.analysis_status==='failed'?(item.analysis_error||'分析失败'):'MiMo 分析中。'}}</p><footer><span>{{item.author||'平台用户'}} · {{item.likes??'--'}} 赞</span><button (click)="openItem(item)">{{item.analysis_status==='completed'?'查看分析':'查看详情'}} →</button></footer></div>
+        </article>
+      }
+    </div>
+  </section>
+}
+
+@if(selectedItem();as item){
+  <div class="detail-overlay" (click)="closeItem()"></div>
+  <aside class="detail-drawer">
+    <button class="drawer-close" (click)="closeItem()">×</button>
+    <header><p class="eyebrow">INSIGHT DETAIL</p><div class="detail-heading"><div><em>{{item.platform}}</em><strong># {{item.keyword}}</strong></div><i [class]="'status '+item.analysis_status">{{statusLabel(item.analysis_status)}}</i></div><h2>{{item.title}}</h2></header>
+    <div class="detail-media">@if(item.thumbnail_url){<img [src]="item.thumbnail_url" alt="" referrerpolicy="no-referrer">}<button (click)="play(item)">▶ 播放视频</button></div>
+    <dl class="detail-meta"><div><dt>发布用户</dt><dd>{{item.author||'平台用户'}}</dd></div><div><dt>点赞数</dt><dd>{{item.likes??'--'}}</dd></div><div><dt>发布时间</dt><dd>{{formatDate(item.published_at)}}</dd></div><div><dt>标记时间</dt><dd>{{formatDate(item.marked_at)}}</dd></div><div><dt>视频时长</dt><dd>{{item.duration||'--:--'}}</dd></div><div><dt>分析模型</dt><dd>{{item.model||'MiMo 视频理解'}}</dd></div></dl>
+    @if(item.analysis_status==='completed'){
+      <div class="analysis-blocks"><section><span>01</span><div><h3>视频标题</h3><p>{{item.video_title||'暂无标题分析'}}</p></div></section><section><span>02</span><div><h3>视频文案</h3><p>{{item.transcript||'无明确文案'}}</p></div></section><section><span>03</span><div><h3>文案结构</h3><p>{{item.copy_structure||'暂无结构分析'}}</p></div></section><section><span>04</span><div><h3>提取起量点</h3><p>{{item.boost_points||'暂无起量点分析'}}</p></div></section></div>
+    }@else if(item.analysis_status==='failed'){
+      <div class="drawer-message failed"><b>分析未完成</b><p>{{item.analysis_error||'分析任务执行失败，等待重新处理。'}}</p></div>
+    }@else{
+      <div class="drawer-message"><i></i><div><b>{{item.analysis_status==='processing'?'MiMo 正在理解视频':'MiMo 正在准备分析'}}</b><p>完成后将在这里展示文案、标题、结构和起量点。</p></div></div>
+    }
+    <footer class="drawer-actions">@if(item.url){<a [href]="item.url" target="_blank" rel="noopener noreferrer">查看平台原文 ↗</a>}<button [disabled]="deletingId()===item.id" (click)="abandon(item)">{{deletingId()===item.id?'正在删除…':'放弃灵感'}}</button></footer>
+  </aside>
+}
+
+@if(playbackLoading()||playbackUrl()||playbackError()){<div class="player-overlay" (click)="closePlayer()"><section class="player-modal" (click)="$event.stopPropagation()"><button class="player-close" (click)="closePlayer()">×</button>@if(playbackLoading()){<div class="player-state">正在解析播放地址…</div>}@else if(playbackError()){<div class="player-state error">{{playbackError()}}</div>}@else{<video [src]="playbackUrl()" controls autoplay playsinline></video>}</section></div>}

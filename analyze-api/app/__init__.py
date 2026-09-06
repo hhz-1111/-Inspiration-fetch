@@ -1,0 +1,1 @@
+"""Inspiration video analysis service."""

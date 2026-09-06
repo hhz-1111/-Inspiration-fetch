@@ -1,0 +1,99 @@
+<section class="page-head">
+  <div><p class="eyebrow">01 / DISCOVER</p><h1>捕捉正在发生的灵感</h1><p class="sub">连接内容平台并设定观察范围，采集服务会复用安全登录状态获取视频样本。</p></div>
+  <span class="count-badge">{{ store.videos().length || '—' }} 个样本</span>
+</section>
+
+<div class="workspace">
+  <section class="preview-panel">
+    <div class="section-title"><div><span>样本预览</span><small>点击卡片选择需要分析的视频</small></div><b>{{ store.selectedCount() }} 已选择</b></div>
+    @if (store.videos().length) {
+      <div class="video-grid">
+        @for (video of store.videos(); track video.id; let i = $index) {
+          <article class="video-card" [class.selected]="video.selected" (click)="store.toggle(video.id)">
+            <div class="thumb" [class]="'thumb ' + video.palette">
+              @if (video.thumbnailUrl) { <img [src]="video.thumbnailUrl" alt="" referrerpolicy="no-referrer"> }
+              <span class="order">0{{ i + 1 }}</span><button class="play" title="在线播放" (click)="play($event, video)">▶</button><span class="duration">{{ video.duration }}</span>
+            </div>
+            <div class="meta"><strong>{{ video.title }}</strong><span>{{ video.author }} · {{ video.likes ?? '--' }} 赞</span><em># {{ video.keyword }}</em></div>
+            <i class="check">✓</i>
+          </article>
+        }
+      </div>
+    } @else {
+      <div class="empty"><div class="radar"><i></i></div><h2>等待第一批样本</h2><p>在右侧定义采集条件，视频缩略图会在这里出现。</p><span>STEP 01 → SET THE SIGNAL</span></div>
+    }
+    @if(store.videos().length){<div class="panel-actions">
+      <button class="ghost" (click)="store.selectAll(true)">全选</button>
+      <button class="ghost" (click)="store.selectAll(false)">取消</button>
+      <button class="primary" (click)="analyze()">分析所选 <span>→</span></button>
+    </div>}
+  </section>
+
+  <aside class="form-panel">
+    <div class="form-number">01</div><p class="eyebrow">SET THE SIGNAL</p><h2>定义采集条件</h2><p class="intro">告诉系统你在寻找什么。多个关键词将成为分析页的内容分组。</p>
+    <form (ngSubmit)="submit()">
+      <label>目标平台
+        <select name="platform" [(ngModel)]="platform" (ngModelChange)="platformChanged()">
+          <option value="douyin">抖音</option><option value="xiaohongshu">小红书</option>
+        </select>
+      </label>
+      <div class="auth-card" [class.connected]="authState() === 'authenticated'" [class.failed]="authState() === 'failed'">
+        <div class="auth-head"><span><i></i>{{ authState() === 'authenticated' ? '账号已连接' : '平台授权' }}</span>
+          @if (authState() === 'authenticated') { <button type="button" (click)="logout()">退出</button> }
+        </div>
+        @if (authState() === 'waiting_scan' && authSessionId()) {
+          <div class="qr-wrap"><img [src]="qrUrl()" alt="平台登录二维码"><span>请在浏览器窗口中完成登录</span></div>
+        } @else if (authState() === 'qr_required' || authState() === 'expired' || authState() === 'cancelled' || authState() === 'failed') {
+          <button class="retry-auth" type="button" (click)="startAuth()">{{ authState() === 'qr_required' ? '登录平台' : '重新登录' }}</button>
+        } @else if (authState() !== 'authenticated') {
+          <div class="auth-loading"><i></i>正在准备安全登录环境</div>
+        }
+        <p>{{ authMessage() }}</p>
+      </div>
+      <label>关键词
+        <input name="keywords" [(ngModel)]="keywordInput" placeholder="如：美食 ｜ 多个关键词用逗号或换行分隔" autocomplete="off">
+        <small>直接输入后点开始采集；多个关键词用逗号或换行分隔，将作为分析页的内容分组</small>
+      </label>
+      <label>采集条数<div class="number-input"><input type="number" name="count" min="1" max="24" [(ngModel)]="count"><span>条 / 最多 24</span></div></label>
+      <label>发布时间
+        <select name="createdTime" [(ngModel)]="createdTime"><option value="any">不限</option><option value="today">今天</option><option value="week">过去一周</option><option value="month">过去一个月</option><option value="three_months">过去三个月</option><option value="six_months">过去六个月</option><option value="year">过去一年</option><option value="older">更久</option></select>
+      </label>
+      <label>最低点赞数<div class="number-input"><input type="number" name="minLikes" min="0" [(ngModel)]="minLikes"><span>赞及以上</span></div></label>
+      <label class="speed-field">采集速度
+        <div class="speed-value"><strong>{{ speedOptions[speedIndex].label }}</strong><span>{{ speedOptions[speedIndex].detail }}</span></div>
+        <input class="speed-range" type="range" name="speedIndex" min="0" [max]="platform === 'douyin' ? 1 : speedOptions.length - 1" step="1" [(ngModel)]="speedIndex" [style.--speed-progress]="speedProgress() + '%'">
+        <div class="speed-labels">@for(option of speedOptions;track option.value){<span>{{option.label}}</span>}</div>
+        <small>{{ platform === 'douyin' ? '抖音仅开放树懒和真人速度，以降低触发平台风控的概率' : '速度越慢越接近人工浏览节奏，可降低短时间请求过多的风险' }}</small>
+      </label>
+      <button class="primary submit" type="submit" [disabled]="loading() || authState() !== 'authenticated'"><span>{{ loading() ? '采集中 ' + progress() + '%' : '开始采集' }}</span><b>↗</b></button>
+    </form>
+    @if (message()) { <p class="notice">{{ message() }}</p> }
+  </aside>
+</div>
+
+<section class="history-panel">
+  <div class="section-title"><div><span>采集历史</span><small>最近 20 次任务记录，运行中的任务可随时取消</small></div><b>{{ history().length }} 条记录</b></div>
+  @if (history().length) {
+    <div class="history-list">
+      @for (item of history(); track item.id) {
+        <div class="history-row">
+          <span class="h-status" [class]="'s-' + item.status">{{ statusLabel(item.status) }}</span>
+          <div class="h-main">
+            <strong>{{ platformLabel(item.platform) }} · {{ item.keywords.slice(0, 3).join('、') }}{{ item.keywords.length > 3 ? ' 等' : '' }}</strong>
+            <span>{{ item.message }}</span>
+          </div>
+          <div class="h-meta">
+            <span>{{ item.requested_count }} 条 / {{ item.progress }}%</span>
+            @if (item.status === 'pending' || item.status === 'running') {
+              <button type="button" (click)="cancelTask(item.id)">取消</button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <p class="history-empty">暂无采集记录，开始你的第一次采集吧</p>
+  }
+</section>
+
+@if(playingVideo();as video){<div class="player-overlay" (click)="closePlayer()"><section class="player-modal" (click)="$event.stopPropagation()"><button class="player-close" (click)="closePlayer()">×</button><p class="eyebrow">ONLINE PLAYER</p><h2>{{video.title}}</h2>@if(playbackLoading()){<div class="player-state">正在解析播放地址…</div>}@else if(playbackError()){<div class="player-state error">{{playbackError()}}</div>}@else if(playbackUrl()){<video [src]="playbackUrl()" [poster]="video.thumbnailUrl" controls autoplay playsinline></video>}</section></div>}

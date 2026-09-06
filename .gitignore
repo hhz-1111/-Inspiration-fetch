@@ -1,0 +1,10 @@
+.runtime/
+__pycache__/
+.env
+.chrome-debug/
+.venv/
+# 运行时数据:登录 cookie/浏览器会话/上传文件/本地数据库,一律不入库
+fetch-api/data/
+# 旧仓库历史备份(本机保留用),不入库
+.git-backup/
+.DS_Store
